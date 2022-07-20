@@ -7,7 +7,9 @@ enable connection to db and some basic operations
 """
 import os.path
 from config_win import *
+import pickle
 import psycopg2
+from rdkit import Chem
 
 
 class DBUtil:
@@ -60,7 +62,8 @@ class DBUtil:
         private cuz only done once
         :return:
         """
-        query = '''create table smiles2k(
+        query = '''
+        CREATE TABLE smiles2k(
         id serial primary key,
         smiles text,
         molwt float); 
@@ -76,15 +79,13 @@ class DBUtil:
         :return:
         """
         query = '''
-        create table smiles8m(
+        CREATE TABLE smiles8m(
         id serial primary key,
         smiles text,
         molwt float); 
         '''
         self._cursor.execute(query)
         self._connection.commit()
-
-
 
     def _drop_table(self, table_name):
         """
@@ -137,10 +138,23 @@ class DBUtil:
             return
 
         query = '''
-        SELECT * INTO mols_{} FROM (select id, mol_from_smiles(smiles::cstring) m from {}) tmp WHERE m IS NOT NULL;
+        SELECT * INTO mols_{} FROM (SELECT id, mol_from_smiles(smiles::cstring) m FROM {}) tmp WHERE m IS NOT NULL;
         '''.format(table_name, table_name)
         self._cursor.execute(query)
         self._connection.commit()
+
+    def _test_mol_table(self):
+        """
+        a test for inserting a
+        :return:
+        """
+        smiles = 'CC(C)CC(NC(=O)C(Cc1ccccc1)NC(=O)C(N)CO)C(=O)NC(CC(C)C)C(=O)NC(CCCNC(=N)N)C(=O)NC(CC(N)=O)C(=O)O'
+        # mol = Chem.MolFromSmiles(smiles)
+        # self._cursor.execute("CREATE TABLE test(smiles text,mol BYTEA)")
+        # self._cursor.execute("INSERT INTO test VALUES(%s, %s)", (smiles, pickle.dumps(mol)))
+        self._cursor.execute("SELECT mol FROM test WHERE smiles='{}'".format(smiles))
+        result = pickle.loads(self._cursor.fetchone()[0])
+        print(Chem.MolToSmiles(result))
 
     # callables
     def get_cursor(self):
@@ -159,6 +173,7 @@ class DBUtil:
         if table_name not in self._tables:
             print('ERROR: table name not found in database')
             return
+
         query = '''
         SELECT count(*) FROM {}
         '''.format(table_name)
@@ -166,12 +181,34 @@ class DBUtil:
         result = self._cursor.fetchall()
         return result[0][0]
 
+    def fetch_mol_by_index(self, i, table_name='mols_smiles2k'):
+        """
+        fetch mol object from molecule table by index
+        :param i: index
+        :param table_name: molecule table to be queried
+        :return: molecule object
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+
+        query = '''
+        SELECT mol_send(m) FROM {} WHERE id = {}
+        '''.format(table_name, i)
+        self._cursor.execute(query)
+        result = self._cursor.fetchall()
+        print(result)
+
     def dbtest(self):
         """
         for personal tests
         :return:
         """
-        self._create_initial_mol('smiles2k')
+        # self._drop_table('mols_smiles2k')
+        # self._create_initial_mol('smiles2k')
+        # self.fetch_mol_by_index(0, 'mols_smiles2k')
+        # self._drop_table('test')
+        self._test_mol_table()
 
 
 if __name__ == '__main__':

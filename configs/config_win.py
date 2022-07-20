@@ -8,14 +8,16 @@ configurations of ToyVS
 import os
 import yaml
 
-project_dir = os.getcwd()
-data_dir = os.path.join(project_dir, "../data")
+project_dir = "D:\\AlexYu\\ToyVS"
+data_dir = os.path.join(project_dir, "data")
 # in this configuration, 2 csv files with nearly 2k and 8m lines of smiles strings are used as data source
 data_2k = os.path.join(data_dir, "smiles_2k.csv")
 data_8m = os.path.join(data_dir, "smiles_8m.csv")
 protein_names = ['7AMA']
 protein_path = os.path.join(data_dir, 'proteins')
 num_process = 6
+ecif_model = os.path.join(project_dir, 'ecif', 'models', 'model.pkl')
+ecif_pdb_atom_keys = os.path.join(project_dir, 'ecif', 'ECIF_PDB_Atom_Keys.csv')
 
 
 class EquiBindArgs:
@@ -29,7 +31,7 @@ class EquiBindArgs:
         self.use_rdkit_coords = True
         self.save_trajectories = False
         self.num_confs = False
-        self.run_dir = os.path.join(project_dir, '../run', 'flexible_self_docking')
+        self.run_dir = os.path.join(project_dir, 'run', 'flexible_self_docking')
         self.checkpoint = os.path.join(self.run_dir, 'best_checkpoint.pt')
         self.metrics = ['pearsonr', 'rsquared', 'mean_rmsd', 'median_rmsd',
                         'median_centroid_distance', 'centroid_distance_less_than_2',

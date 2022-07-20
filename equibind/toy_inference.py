@@ -14,9 +14,10 @@ from losses import *
 from copy import deepcopy
 from rdkit.Geometry import Point3D
 from rdkit.Chem import AllChem
+import pandas as pd
 
 
-def inference():
+def inference_and_score():
     print('\n')
     arg_helper = EquiBindArgs()
     args = arg_helper.get_all_args()
@@ -124,10 +125,23 @@ def inference():
                     for i in range(optimized_mol.GetNumAtoms()):
                         x, y, z = coords_pred_optimized[i]
                         conf.SetAtomPosition(i, Point3D(float(x), float(y), float(z)))
-                    block_optimized = Chem.MolToMolBlock(optimized_mol)
-                    print('Writing predictions: ')
-                    with open(os.path.join(data_dir, 'equi_output', 'test.sdf'), "w") as newfile:
-                        newfile.write(block_optimized)
+
+                    # ecif::autogluon scoring
+                    from ecif.util.ECIF import ECIF
+                    ecif_helper = ECIF(2016)
+                    ecif = ecif_helper.get_ecif(rec_path, optimized_mol, float(6.0))
+                    ld = ecif_helper.get_ligand_features_by_mol(optimized_mol)
+                    m = pickle.load(open(ecif_model, 'rb'))
+                    data = ecif + list(ld)
+                    cols = ecif_helper.get_possible_ecif() + ecif_helper.get_ligand_descriptors()
+                    data_f = pd.DataFrame([data], columns=cols)
+                    pred = m.predict(data_f)[0]
+                    print("prediction: {}".format(pred))
+
+                    # block_optimized = Chem.MolToMolBlock(optimized_mol)
+                    # print('Writing predictions: ')
+                    # with open(os.path.join(data_dir, 'equi_output', 'test.sdf'), "w") as newfile:
+                    #     newfile.write(block_optimized)
 
     db_helper.__del__()
 
@@ -137,4 +151,4 @@ def test():
 
 
 if __name__ == '__main__':
-    inference()
+    inference_and_score()

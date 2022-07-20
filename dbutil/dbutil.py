@@ -6,7 +6,7 @@ database: you have to create it first locally
 enable connection to db and some basic operations
 """
 import os.path
-from config_win import *
+from configs.config_win import *
 import pickle
 import psycopg2
 from rdkit import Chem
@@ -181,23 +181,23 @@ class DBUtil:
         result = self._cursor.fetchall()
         return result[0][0]
 
-    def fetch_mol_by_index(self, i, table_name='mols_smiles2k'):
+    def fetch_smiles_by_index(self, i, table_name='smiles2k'):
         """
-        fetch mol object from molecule table by index
+        fetch smiles from smiles table by index
         :param i: index
-        :param table_name: molecule table to be queried
-        :return: molecule object
+        :param table_name: smiles table to be queried
+        :return: smiles
         """
         if table_name not in self._tables:
             print('ERROR: table name not found in database')
             return
 
         query = '''
-        SELECT mol_send(m) FROM {} WHERE id = {}
+        SELECT smiles FROM {} WHERE id = {}
         '''.format(table_name, i)
         self._cursor.execute(query)
-        result = self._cursor.fetchall()
-        print(result)
+        result = self._cursor.fetchall()[0][0]
+        return result
 
     def dbtest(self):
         """

@@ -15,6 +15,10 @@ from copy import deepcopy
 from rdkit.Geometry import Point3D
 from rdkit.Chem import AllChem
 import pandas as pd
+import time
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 def inference_and_score():
@@ -38,13 +42,24 @@ def inference_and_score():
         else args['dataset_params']['use_rdkit_coords']
     db_helper = DBUtil()
     num_ligs = db_helper.get_num_rows('smiles2k')
-    num_ligs = 1
+    ######################
+    # only for test
+    num_ligs = 800
+    new_range = [i + 1000 for i in range(num_ligs)]
+    ######################
     for name in protein_names:
         print('Processing {}:'.format(name))
+        err_ids = []
         rec_path = os.path.join(protein_path, '{}.pdb'.format(name))
-        for j in range(num_ligs):
-            lig = AllChem.AddHs(Chem.MolFromSmiles(db_helper.fetch_smiles_by_index(j, 'smiles2k')))
-            AllChem.EmbedMolecule(lig, useExpTorsionAnglePrefs=False, useBasicKnowledge=False)
+        for j in new_range:
+            try:
+                lig = AllChem.AddHs(Chem.MolFromSmiles(db_helper.fetch_smiles_by_index(j, 'smiles2k')))
+                AllChem.EmbedMolecule(lig, useExpTorsionAnglePrefs=False, useBasicKnowledge=False)
+            except:
+                db_helper.insert_prediction(j, '', 0, 'results2k')
+                err_ids.append(j)
+                continue
+
             rec, rec_coords, c_alpha_coords, n_coords, c_coords = get_receptor_inference(rec_path)
             rec_graph = get_rec_graph(rec, rec_coords, c_alpha_coords, n_coords, c_coords,
                                       use_rec_atoms=dp['use_rec_atoms'], rec_radius=dp['rec_graph_radius'],
@@ -136,13 +151,9 @@ def inference_and_score():
                     cols = ecif_helper.get_possible_ecif() + ecif_helper.get_ligand_descriptors()
                     data_f = pd.DataFrame([data], columns=cols)
                     pred = m.predict(data_f)[0]
-                    print("prediction: {}".format(pred))
-
-                    # block_optimized = Chem.MolToMolBlock(optimized_mol)
-                    # print('Writing predictions: ')
-                    # with open(os.path.join(data_dir, 'equi_output', 'test.sdf'), "w") as newfile:
-                    #     newfile.write(block_optimized)
-
+                    db_helper.insert_prediction(j, optimized_mol, pred, 'results2k')
+        print('following ids cannot be processed:')
+        print(err_ids)
     db_helper.__del__()
 
 
@@ -151,4 +162,7 @@ def test():
 
 
 if __name__ == '__main__':
+    start = time.perf_counter()
     inference_and_score()
+    end = time.perf_counter()
+    print('\nrun time: {} seconds'.format(round(end-start)))

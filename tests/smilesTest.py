@@ -10,5 +10,11 @@ def test():
     print(conf)
 
 
+def rangetest():
+    a = range(100)
+    b = a + 500
+    print(b)
+
+
 if __name__ == '__main__':
-    test()
+    rangetest()

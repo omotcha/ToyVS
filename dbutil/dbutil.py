@@ -1,7 +1,7 @@
 """
 platform: win
 env: any but with psycopg2 lib
-name: dbconn.py
+name: dbutil.py
 database: you have to create it first locally
 enable connection to db and some basic operations
 """
@@ -70,6 +70,41 @@ class DBUtil:
         '''
         self._cursor.execute(query)
         self._connection.commit()
+        self._tables = [i[0] for i in self._get_all_tables()]
+
+    def _create_table_results2k(self):
+        """
+        create a table containing 2k results
+        for test
+        private cuz only done once
+        :return:
+        """
+        query = '''
+        CREATE TABLE results2k(
+        id serial primary key,
+        equimol BYTEA,
+        prediction float); 
+        '''
+        self._cursor.execute(query)
+        self._connection.commit()
+        self._tables = [i[0] for i in self._get_all_tables()]
+
+    def _create_table_results8m(self):
+        """
+        create a table containing 8m results
+        for test
+        private cuz only done once
+        :return:
+        """
+        query = '''
+        CREATE TABLE results8m(
+        id serial primary key,
+        equimol BYTEA,
+        prediction float); 
+        '''
+        self._cursor.execute(query)
+        self._connection.commit()
+        self._tables = [i[0] for i in self._get_all_tables()]
 
     def _create_table_smiles8m(self):
         """
@@ -86,6 +121,7 @@ class DBUtil:
         '''
         self._cursor.execute(query)
         self._connection.commit()
+        self._tables = [i[0] for i in self._get_all_tables()]
 
     def _drop_table(self, table_name):
         """
@@ -103,6 +139,7 @@ class DBUtil:
         '''.format(table_name)
         self._cursor.execute(query)
         self._connection.commit()
+        self._tables = [i[0] for i in self._get_all_tables()]
 
     def _fill_table_with_local_file(self, f=data_2k, table_name='smiles2k'):
         """
@@ -148,13 +185,16 @@ class DBUtil:
         a test for inserting a
         :return:
         """
-        smiles = 'CC(C)CC(NC(=O)C(Cc1ccccc1)NC(=O)C(N)CO)C(=O)NC(CC(C)C)C(=O)NC(CCCNC(=N)N)C(=O)NC(CC(N)=O)C(=O)O'
-        # mol = Chem.MolFromSmiles(smiles)
-        # self._cursor.execute("CREATE TABLE test(smiles text,mol BYTEA)")
-        # self._cursor.execute("INSERT INTO test VALUES(%s, %s)", (smiles, pickle.dumps(mol)))
-        self._cursor.execute("SELECT mol FROM test WHERE smiles='{}'".format(smiles))
+        smiles = "n1(c(nnn1)SCC(=O)Nc1sc(nn1)SCC(=O)NNC(=O)CSc1n(nnn1)c1ccccc1)c1ccccc1"
+        self._cursor.execute("SELECT equimol FROM results2k WHERE id='{}'".format(1))
         result = pickle.loads(self._cursor.fetchone()[0])
-        print(Chem.MolToSmiles(result))
+        origin = Chem.MolFromSmiles(smiles)
+        block_optimized = Chem.MolToMolBlock(origin)
+        with open(os.path.join(output_dir, '1.sdf'), "w") as newfile:
+            newfile.write(block_optimized)
+        block_optimized = Chem.MolToMolBlock(result)
+        with open(os.path.join(output_dir, '2.sdf'), "w") as newfile:
+            newfile.write(block_optimized)
 
     # callables
     def get_cursor(self):
@@ -208,9 +248,35 @@ class DBUtil:
         # self._create_initial_mol('smiles2k')
         # self.fetch_mol_by_index(0, 'mols_smiles2k')
         # self._drop_table('test')
-        self._test_mol_table()
+        self._drop_table('results2k')
+        self._create_table_results2k()
+
+    def insert_prediction(self, i, mol, pred, table_name='results2k'):
+        """
+        insert one row of result into table
+        :param i: index
+        :param mol: rdkit molecule object to be pickled
+        :param pred: the prediction
+        :param table_name: name of table to be inserted
+        :return:
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+        sql = "INSERT INTO {}".format(table_name)
+        sql = sql + " VALUES(%s, %s, %s)"
+        self._cursor.execute(sql, (i, pickle.dumps(mol), pred))
+        self._connection.commit()
+
+    def reset_results2k(self):
+        """
+
+        :return:
+        """
+        self._drop_table('results2k')
+        self._create_table_results2k()
 
 
 if __name__ == '__main__':
     dbu = DBUtil()
-    dbu.dbtest()
+    dbu.reset_results2k()

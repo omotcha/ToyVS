@@ -13,10 +13,11 @@ data_dir = os.path.join(project_dir, "data")
 # in this configuration, 2 csv files with nearly 2k and 8m lines of smiles strings are used as data source
 data_2k = os.path.join(data_dir, "smiles_2k.csv")
 data_8m = os.path.join(data_dir, "smiles_8m.csv")
+output_dir = os.path.join(data_dir, "equi_output")
 protein_names = ['7AMA']
 protein_path = os.path.join(data_dir, 'proteins')
 num_process = 6
-ecif_model = os.path.join(project_dir, 'ecif', 'models', 'model.pkl')
+ecif_model = os.path.join(project_dir, 'ecif', 'models', 'ecif_gbt_6.0.pkl')
 ecif_pdb_atom_keys = os.path.join(project_dir, 'ecif', 'ECIF_PDB_Atom_Keys.csv')
 
 

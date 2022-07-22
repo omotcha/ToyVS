@@ -11,6 +11,40 @@ import pickle
 import psycopg2
 from rdkit import Chem
 
+trans_map = {
+   '\a': r'\a',
+   '\b': r'\b',
+   '\f': r'\f',
+   '\n': r'\n',
+   '\r': r'\r',
+   '\t': r'\t',
+   '\v': r'\v',
+   '\'': r'\'',
+   '\"': r'\"',
+   '\0': r'\0',
+   '\1': r'\1',
+   '\2': r'\2',
+   '\3': r'\3',
+   '\4': r'\4',
+   '\5': r'\5',
+   '\6': r'\6',
+   '\7': r'\7',
+   '\8': r'\8',
+   '\9': r'\9'
+}
+
+
+def raw(text):
+    """Returns a raw string representation of text"""
+    new_str = ''
+    for char in text:
+        try:
+            new_str += trans_map[char]
+        except KeyError:
+            new_str += char
+
+    return new_str
+
 
 class DBUtil:
 
@@ -163,6 +197,58 @@ class DBUtil:
             self._cursor.copy_from(ff, table_name, sep=',', )
         self._connection.commit()
 
+    def _create_distinct_table(self, table_name='smiles2k'):
+        """
+        create table with distinct canonical smiles strings
+        :param table_name:
+        :return:
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+
+        query = '''
+        CREATE TABLE tmp_{}(
+        id integer,
+        canonical_smiles text,
+        molwt float
+        );
+        '''.format(table_name)
+        self._cursor.execute(query)
+        self._connection.commit()
+
+        err = []
+        count = 0
+        count_chunk = 0
+        print(count_chunk + 1)
+        for i in range(self.get_num_rows(table_name)):
+            if count == 1000:
+                count_chunk += 1
+                print(count_chunk + 1)
+                count = 0
+                self._connection.commit()
+            count += 1
+            id_useless, sm, mw = self._fetch_row_by_index(i, table_name)
+            try:
+                cs = Chem.CanonSmiles(sm)
+            except:
+                err.append(i)
+                continue
+            sql = "INSERT INTO tmp_{}".format(table_name)
+            sql = sql + " VALUES(%s, %s, %s)"
+            self._cursor.execute(sql, (i, cs, mw))
+        self._connection.commit()
+        print("error list:")
+        print(err)
+        allq = '''
+        SELECT * INTO distinct_{} FROM(
+        SELECT MIN(id) AS id,canonical_smiles,MAX(molwt) as molwt  FROM tmp_{} GROUP BY canonical_smiles
+         ) tmp;
+        '''.format(table_name, table_name)
+        self._cursor.execute(allq)
+        self._connection.commit()
+        self._drop_table('tmp_{}'.format(table_name))
+
     def _create_initial_mol(self, table_name='smiles2k'):
         """
         generate initial molecule table from smiles table
@@ -179,6 +265,7 @@ class DBUtil:
         '''.format(table_name, table_name)
         self._cursor.execute(query)
         self._connection.commit()
+        self._tables = [i[0] for i in self._get_all_tables()]
 
     def _test_mol_table(self):
         """
@@ -195,6 +282,58 @@ class DBUtil:
         block_optimized = Chem.MolToMolBlock(result)
         with open(os.path.join(output_dir, '2.sdf'), "w") as newfile:
             newfile.write(block_optimized)
+
+    def _fetch_row_by_index(self, i, table_name='smiles2k'):
+        """
+        fetch row from smiles table by index
+        :param i: index
+        :param table_name: smiles table to be queried
+        :return: smiles
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+
+        query = '''
+        SELECT * FROM {} WHERE id = {}
+        '''.format(table_name, i)
+        self._cursor.execute(query)
+        result = self._cursor.fetchone()
+        return result
+
+    def _fetch_canonical_smiles_by_index(self, i, table_name='distinct_smiles2k'):
+        """
+        fetch canonical smiles from distinct smiles table by index
+        :param i: index
+        :param table_name: distinct smiles table to be queried
+        :return: canonical smiles
+        """
+        query = '''
+        SELECT canonical_smiles FROM {} WHERE id = {}
+        '''.format(table_name, i)
+        self._cursor.execute(query)
+        result = self._cursor.fetchone()
+        if len(result) == 0:
+            return None
+        else:
+            return raw(result[0])
+
+    def _fetch_smiles_by_index(self, i, table_name='smiles2k'):
+        """
+        fetch smiles from smiles table by index
+        :param i: index
+        :param table_name: smiles table to be queried
+        :return: smiles
+        """
+        query = '''
+        SELECT smiles FROM {} WHERE id = {}
+        '''.format(table_name, i)
+        self._cursor.execute(query)
+        result = self._cursor.fetchone()
+        if len(result) == 0:
+            return None
+        else:
+            return raw(result[0])
 
     # callables
     def get_cursor(self):
@@ -218,8 +357,46 @@ class DBUtil:
         SELECT count(*) FROM {}
         '''.format(table_name)
         self._cursor.execute(query)
-        result = self._cursor.fetchall()
-        return result[0][0]
+        result = self._cursor.fetchone()
+        return result[0]
+
+    def fetch_ids(self, table_name):
+        """
+        fetch id list
+        :param table_name: table to be queried
+        :return:
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+        query = '''
+        SELECT id FROM {}
+        '''.format(table_name)
+        self._cursor.execute(query)
+        result = [i[0] for i in self._cursor.fetchall()]
+        result.sort(key=None, reverse=False)
+        return result
+
+    def fetch_canonical_smiles_by_index(self, i, table_name='distinct_smiles2k'):
+        """
+        fetch canonical smiles from distinct smiles table by index
+        :param i: index
+        :param table_name: distinct smiles table to be queried
+        :return: canonical smiles
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+
+        query = '''
+        SELECT canonical_smiles FROM {} WHERE id = {}
+        '''.format(table_name, i)
+        self._cursor.execute(query)
+        result = self._cursor.fetchone()
+        if len(result) == 0:
+            return None
+        else:
+            return raw(result[0])
 
     def fetch_smiles_by_index(self, i, table_name='smiles2k'):
         """
@@ -236,20 +413,19 @@ class DBUtil:
         SELECT smiles FROM {} WHERE id = {}
         '''.format(table_name, i)
         self._cursor.execute(query)
-        result = self._cursor.fetchall()[0][0]
-        return result
+        result = self._cursor.fetchone()
+        if len(result) == 0:
+            return None
+        else:
+            return raw(result[0])
 
     def dbtest(self):
         """
         for personal tests
         :return:
         """
-        # self._drop_table('mols_smiles2k')
-        # self._create_initial_mol('smiles2k')
-        # self.fetch_mol_by_index(0, 'mols_smiles2k')
-        # self._drop_table('test')
-        self._drop_table('results2k')
-        self._create_table_results2k()
+        ret = self.fetch_ids('distinct_smiles2k')
+        print(ret)
 
     def insert_prediction(self, i, mol, pred, table_name='results2k'):
         """
@@ -276,7 +452,16 @@ class DBUtil:
         self._drop_table('results2k')
         self._create_table_results2k()
 
+    def reset_results8m(self):
+        """
+
+        :return:
+        """
+        self._drop_table('results8m')
+        self._create_table_results8m()
+
 
 if __name__ == '__main__':
     dbu = DBUtil()
     dbu.reset_results2k()
+    # dbu.dbtest()

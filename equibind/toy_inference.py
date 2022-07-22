@@ -41,35 +41,39 @@ def inference_and_score():
     use_rdkit_coords = args['use_rdkit_coords'] if args['use_rdkit_coords'] is not None \
         else args['dataset_params']['use_rdkit_coords']
     db_helper = DBUtil()
-    num_ligs = db_helper.get_num_rows('smiles2k')
+    table_name = "distinct_smiles2k"
     ######################
     # only for test
-    num_ligs = 800
-    new_range = [i + 1000 for i in range(num_ligs)]
+    # table_name = "smiles2k"
     ######################
+    equibind_time = 0.0
+    ecif_time = 0.0
+    m = pickle.load(open(ecif_model, 'rb'))
     for name in protein_names:
         print('Processing {}:'.format(name))
         err_ids = []
         rec_path = os.path.join(protein_path, '{}.pdb'.format(name))
-        for j in new_range:
+        rec, rec_coords, c_alpha_coords, n_coords, c_coords = get_receptor_inference(rec_path)
+        rec_graph = get_rec_graph(rec, rec_coords, c_alpha_coords, n_coords, c_coords,
+                                  use_rec_atoms=dp['use_rec_atoms'], rec_radius=dp['rec_graph_radius'],
+                                  surface_max_neighbors=dp['surface_max_neighbors'],
+                                  surface_graph_cutoff=dp['surface_graph_cutoff'],
+                                  surface_mesh_cutoff=dp['surface_mesh_cutoff'],
+                                  c_alpha_max_neighbors=dp['c_alpha_max_neighbors'])
+        for j in db_helper.fetch_ids(table_name):
+        # for j in [89]:
+            lig = AllChem.AddHs(
+                Chem.MolFromSmiles(db_helper.fetch_canonical_smiles_by_index(j, table_name)))
+            AllChem.EmbedMolecule(lig, useExpTorsionAnglePrefs=False, useBasicKnowledge=False)
+            equibind_start = time.perf_counter()
             try:
-                lig = AllChem.AddHs(Chem.MolFromSmiles(db_helper.fetch_smiles_by_index(j, 'smiles2k')))
-                AllChem.EmbedMolecule(lig, useExpTorsionAnglePrefs=False, useBasicKnowledge=False)
+                lig_graph = get_lig_graph_revised(
+                    lig, name, max_neighbors=dp['lig_max_neighbors'],
+                    use_rdkit_coords=use_rdkit_coords, radius=dp['lig_graph_radius'])
             except:
                 db_helper.insert_prediction(j, '', 0, 'results2k')
                 err_ids.append(j)
                 continue
-
-            rec, rec_coords, c_alpha_coords, n_coords, c_coords = get_receptor_inference(rec_path)
-            rec_graph = get_rec_graph(rec, rec_coords, c_alpha_coords, n_coords, c_coords,
-                                      use_rec_atoms=dp['use_rec_atoms'], rec_radius=dp['rec_graph_radius'],
-                                      surface_max_neighbors=dp['surface_max_neighbors'],
-                                      surface_graph_cutoff=dp['surface_graph_cutoff'],
-                                      surface_mesh_cutoff=dp['surface_mesh_cutoff'],
-                                      c_alpha_max_neighbors=dp['c_alpha_max_neighbors'])
-
-            lig_graph = get_lig_graph_revised(lig, name, max_neighbors=dp['lig_max_neighbors'],
-                                              use_rdkit_coords=use_rdkit_coords, radius=dp['lig_graph_radius'])
             if 'geometry_regularization' in dp and dp['geometry_regularization']:
                 geometry_graph = get_geometry_graph(lig)
             elif 'geometry_regularization_ring' in dp and dp['geometry_regularization_ring']:
@@ -94,7 +98,7 @@ def inference_and_score():
                 model.eval()
 
             with torch.no_grad():
-                geometry_graph = geometry_graph.to(device) if geometry_graph != None else None
+                geometry_graph = geometry_graph.to(device) if geometry_graph is not None else None
                 ligs_coords_pred_untuned, ligs_keypts, recs_keypts, rotations, translations, geom_eg_loss = model(
                     lig_graph.to(device), rec_graph.to(device), geometry_graph, complex_names=[name], epoch=0)
 
@@ -141,20 +145,27 @@ def inference_and_score():
                         x, y, z = coords_pred_optimized[i]
                         conf.SetAtomPosition(i, Point3D(float(x), float(y), float(z)))
 
-                    # ecif::autogluon scoring
+                    equibind_end = time.perf_counter()
+                    equibind_time = equibind_time + (equibind_end - equibind_start)
+                    # ecif::gbt scoring
+
+                    ecif_start = time.perf_counter()
                     from ecif.util.ECIF import ECIF
                     ecif_helper = ECIF(2016)
                     ecif = ecif_helper.get_ecif(rec_path, optimized_mol, float(6.0))
                     ld = ecif_helper.get_ligand_features_by_mol(optimized_mol)
-                    m = pickle.load(open(ecif_model, 'rb'))
+
                     data = ecif + list(ld)
                     cols = ecif_helper.get_possible_ecif() + ecif_helper.get_ligand_descriptors()
                     data_f = pd.DataFrame([data], columns=cols)
                     pred = m.predict(data_f)[0]
+                    ecif_end = time.perf_counter()
+                    ecif_time = ecif_time + (ecif_end - ecif_start)
                     db_helper.insert_prediction(j, optimized_mol, pred, 'results2k')
         print('following ids cannot be processed:')
         print(err_ids)
     db_helper.__del__()
+    return equibind_time, ecif_time
 
 
 def test():
@@ -163,6 +174,9 @@ def test():
 
 if __name__ == '__main__':
     start = time.perf_counter()
-    inference_and_score()
+    eqt, ect = inference_and_score()
     end = time.perf_counter()
-    print('\nrun time: {} seconds'.format(round(end-start)))
+    print('\n')
+    print('run time: {} seconds'.format(round(end-start)))
+    print('equibind time: {} seconds'.format(round(eqt)))
+    print('ecif time: {} seconds'.format(round(ect)))

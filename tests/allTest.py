@@ -15,18 +15,7 @@ def dbTest():
 
 
 def addHTest():
-    db_helper = DBUtil()
-    smiles_list = [
-        db_helper.fetch_canonical_smiles_by_index(89, "distinct_smiles2k"),
-        db_helper.fetch_smiles_by_index(89, "smiles2k")
-    ]
-    for smiles in smiles_list:
-        print(smiles)
-        mol = AllChem.AddHs(Chem.MolFromSmiles(smiles))
-        AllChem.EmbedMolecule(mol, useExpTorsionAnglePrefs=False, useBasicKnowledge=False)
-        conf = mol.GetConformer()
-        print(conf)
-
+    pass
 
 def conformerTest():
     smiles = "O=C(NCc1ccccn1)C(=O)Nc1ccccc1C(=O)NCCc1c[nH]c2ccc(Cl)cc12"

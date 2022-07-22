@@ -14,6 +14,7 @@ data_dir = os.path.join(project_dir, "data")
 data_2k = os.path.join(data_dir, "smiles_2k.csv")
 data_8m = os.path.join(data_dir, "smiles_8m.csv")
 output_dir = os.path.join(data_dir, "equi_output")
+log_dir = os.path.join(project_dir, 'logs')
 protein_names = ['7AMA']
 protein_path = os.path.join(data_dir, 'proteins')
 num_process = 6

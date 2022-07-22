@@ -96,6 +96,9 @@ class DBUtil:
         private cuz only done once
         :return:
         """
+        if "smiles2k" in self._get_all_tables():
+            print("ERROR: Table smiles2k already exists.")
+            return
         query = '''
         CREATE TABLE smiles2k(
         id serial primary key,
@@ -113,6 +116,9 @@ class DBUtil:
         private cuz only done once
         :return:
         """
+        if "results2k" in self._get_all_tables():
+            print("ERROR: Table results2k already exists.")
+            return
         query = '''
         CREATE TABLE results2k(
         id serial primary key,
@@ -130,6 +136,9 @@ class DBUtil:
         private cuz only done once
         :return:
         """
+        if "results8m" in self._get_all_tables():
+            print("ERROR: Table results8m already exists.")
+            return
         query = '''
         CREATE TABLE results8m(
         id serial primary key,
@@ -147,6 +156,9 @@ class DBUtil:
         private cuz only done once
         :return:
         """
+        if "smiles8m" in self._get_all_tables():
+            print("ERROR: Table smiles8m already exists.")
+            return
         query = '''
         CREATE TABLE smiles8m(
         id serial primary key,
@@ -165,7 +177,7 @@ class DBUtil:
         :return:
         """
         if table_name not in self._tables:
-            print('ERROR: table name not found in database')
+            print("ERROR: Table {} not found in database.".format(table_name))
             return
 
         query = '''
@@ -185,11 +197,11 @@ class DBUtil:
         :return:
         """
         if not os.path.isfile(f):
-            print('ERROR: source file not found in local')
+            print("ERROR: Source file not found in local.")
             return
 
         if table_name not in self._tables:
-            print('ERROR: table name not found in database')
+            print("ERROR: Table {} not found in database.".format(table_name))
             return
 
         with open(f, 'r') as ff:
@@ -204,7 +216,15 @@ class DBUtil:
         :return:
         """
         if table_name not in self._tables:
-            print('ERROR: table name not found in database')
+            print("ERROR: Table {} not found in database.".format(table_name))
+            return
+
+        if "distinct_{}".format(table_name) in self._tables:
+            print("ERROR: Table distinct_{} already exists.".format(table_name))
+            return
+
+        if "tmp_{}".format(table_name) in self._tables:
+            print("ERROR: Table tmp_{} already exists.".format(table_name))
             return
 
         query = '''
@@ -249,6 +269,31 @@ class DBUtil:
         self._connection.commit()
         self._drop_table('tmp_{}'.format(table_name))
 
+    def _create_err_table(self, table_name):
+        """
+        create a table for logging run-time-errored canonical smiles
+        private cuz only done once
+        :param table_name: name of table
+        :return:
+        """
+        if table_name not in self._tables:
+            print("ERROR: Table {} not found in database.".format(table_name))
+            return
+
+        if "err_{}".format(table_name) in self._tables:
+            print("ERROR: Table err_{} already exists.".format(table_name))
+            return
+
+        query = '''
+        CREATE TABLE err_{}(
+        id integer,
+        canonical_smiles text,
+        molwt float); 
+        '''.format(table_name)
+        self._cursor.execute(query)
+        self._connection.commit()
+        self._tables = [i[0] for i in self._get_all_tables()]
+
     def _create_initial_mol(self, table_name='smiles2k'):
         """
         generate initial molecule table from smiles table
@@ -257,7 +302,7 @@ class DBUtil:
         :return:
         """
         if table_name not in self._tables:
-            print('ERROR: table name not found in database')
+            print("ERROR: Table {} not found in database".format(table_name))
             return
 
         query = '''
@@ -291,7 +336,7 @@ class DBUtil:
         :return: smiles
         """
         if table_name not in self._tables:
-            print('ERROR: table name not found in database')
+            print("ERROR: Table {} not found in database.".format(table_name))
             return
 
         query = '''
@@ -367,7 +412,7 @@ class DBUtil:
         :return:
         """
         if table_name not in self._tables:
-            print('ERROR: table name not found in database')
+            print("ERROR: Table {} not found in database".format(table_name))
             return
         query = '''
         SELECT id FROM {}
@@ -385,7 +430,7 @@ class DBUtil:
         :return: canonical smiles
         """
         if table_name not in self._tables:
-            print('ERROR: table name not found in database')
+            print("ERROR: Table {} not found in database".format(table_name))
             return
 
         query = '''
@@ -406,7 +451,7 @@ class DBUtil:
         :return: smiles
         """
         if table_name not in self._tables:
-            print('ERROR: table name not found in database')
+            print("ERROR: Table {} not found in database".format(table_name))
             return
 
         query = '''
@@ -424,8 +469,17 @@ class DBUtil:
         for personal tests
         :return:
         """
-        ret = self.fetch_ids('distinct_smiles2k')
-        print(ret)
+        # self.create_err_table("distinct_smiles2k")
+        # self.insert_error(89, "distinct_smiles2k")
+        self._drop_table("err_distinct_smiles2k")
+
+    def create_err_table(self, table_name):
+        """
+
+        :param table_name:
+        :return:
+        """
+        self._create_err_table(table_name)
 
     def insert_prediction(self, i, mol, pred, table_name='results2k'):
         """
@@ -444,6 +498,26 @@ class DBUtil:
         self._cursor.execute(sql, (i, pickle.dumps(mol), pred))
         self._connection.commit()
 
+    def insert_error(self, err_id, table_name):
+        """
+        insert an error smiles record to error table
+        :param err_id:
+        :param table_name:
+        :return:
+        """
+        if table_name not in self._tables:
+            print("ERROR: Table {} not found in database".format(table_name))
+            return
+        if "err_{}".format(table_name) not in self._tables:
+            print("ERROR: Table err_{} not found in database".format(table_name))
+            return
+
+        rec = self._fetch_row_by_index(err_id, table_name)
+        sql = "INSERT INTO err_{}".format(table_name)
+        sql = sql + " VALUES(%s, %s, %s)"
+        self._cursor.execute(sql, rec)
+        self._connection.commit()
+
     def reset_results2k(self):
         """
 
@@ -460,8 +534,26 @@ class DBUtil:
         self._drop_table('results8m')
         self._create_table_results8m()
 
+    def get_err_ids(self, table_name):
+        """
+        get all ids that show invalid prediction
+        :param table_name:
+        :return:
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+
+        query = '''
+        SELECT id FROM err_{};
+        '''.format(table_name)
+        self._cursor.execute(query)
+        result = self._cursor.fetchall()
+        print(result)
+
 
 if __name__ == '__main__':
     dbu = DBUtil()
-    dbu.reset_results2k()
-    # dbu.dbtest()
+    # dbu.reset_results2k()
+    dbu.dbtest()
+    # dbu.get_err_ids('results2k')

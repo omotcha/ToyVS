@@ -64,8 +64,10 @@ def inference_and_score_mp(lig_id_list):
                                   surface_graph_cutoff=dp['surface_graph_cutoff'],
                                   surface_mesh_cutoff=dp['surface_mesh_cutoff'],
                                   c_alpha_max_neighbors=dp['c_alpha_max_neighbors'])
+        from ecif.util.ECIF import ECIF
+        ecif_helper = ECIF(2016)
+        ecif_helper.cache_target(rec_path)
         for j in lig_id_list:
-            # for j in [89]:
             lig = AllChem.AddHs(
                 Chem.MolFromSmiles(db_helper.fetch_canonical_smiles_by_index(j, table_name)))
             AllChem.EmbedMolecule(lig, useExpTorsionAnglePrefs=False, useBasicKnowledge=False)
@@ -147,10 +149,6 @@ def inference_and_score_mp(lig_id_list):
                         x, y, z = coords_pred_optimized[i]
                         conf.SetAtomPosition(i, Point3D(float(x), float(y), float(z)))
                     # ecif::gbt scoring
-
-                    from ecif.util.ECIF import ECIF
-                    ecif_helper = ECIF(2016)
-                    ecif_helper.cache_target(rec_path)
                     ecif = ecif_helper.get_ecif_cached(optimized_mol, float(6.0))
                     ld = ecif_helper.get_ligand_features_by_mol(optimized_mol)
 
@@ -209,6 +207,9 @@ def inference_and_score(table_name, lig_id_list):
                                   surface_graph_cutoff=dp['surface_graph_cutoff'],
                                   surface_mesh_cutoff=dp['surface_mesh_cutoff'],
                                   c_alpha_max_neighbors=dp['c_alpha_max_neighbors'])
+        from ecif.util.ECIF import ECIF
+        ecif_helper = ECIF(2016)
+        ecif_helper.cache_target(rec_path)
         for j in lig_id_list:
             lig = AllChem.AddHs(
                 Chem.MolFromSmiles(db_helper.fetch_canonical_smiles_by_index(j, table_name)))
@@ -297,9 +298,7 @@ def inference_and_score(table_name, lig_id_list):
                     # ecif::gbt scoring
 
                     ecif_start = time.perf_counter()
-                    from ecif.util.ECIF import ECIF
-                    ecif_helper = ECIF(2016)
-                    ecif = ecif_helper.get_ecif(rec_path, optimized_mol, float(6.0))
+                    ecif = ecif_helper.get_ecif_cached(optimized_mol, float(6.0))
                     ld = ecif_helper.get_ligand_features_by_mol(optimized_mol)
 
                     data = ecif + list(ld)
@@ -340,7 +339,7 @@ def modulator(n_workers=4):
 
 
 def test():
-    modulator(n_workers=4)
+    modulator(n_workers=num_process)
 
 
 if __name__ == '__main__':

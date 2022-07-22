@@ -1,14 +1,14 @@
 """
-platform: win
+platform: any
 env: any
-name: config_win.py
+name: config.py
 configurations of ToyVS
 """
 
 import os
 import yaml
 
-project_dir = "D:\\AlexYu\\ToyVS"
+project_dir = "."
 data_dir = os.path.join(project_dir, "data")
 # in this configuration, 2 csv files with nearly 2k and 8m lines of smiles strings are used as data source
 data_2k = os.path.join(data_dir, "smiles_2k.csv")
@@ -17,7 +17,7 @@ output_dir = os.path.join(data_dir, "equi_output")
 log_dir = os.path.join(project_dir, 'logs')
 protein_names = ['7AMA']
 protein_path = os.path.join(data_dir, 'proteins')
-num_process = 4
+num_process = 6
 ecif_model = os.path.join(project_dir, 'ecif', 'models', 'ecif_gbt_6.0.pkl')
 ecif_pdb_atom_keys = os.path.join(project_dir, 'ecif', 'ECIF_PDB_Atom_Keys.csv')
 

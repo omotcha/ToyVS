@@ -525,6 +525,7 @@ class DBUtil:
         """
         self._drop_table('results2k')
         self._create_table_results2k()
+        self._drop_table('err_distinct_smiles2k')
 
     def reset_results8m(self):
         """
@@ -533,6 +534,7 @@ class DBUtil:
         """
         self._drop_table('results8m')
         self._create_table_results8m()
+        self._drop_table('err_distinct_smiles8m')
 
     def get_err_ids(self, table_name):
         """
@@ -554,6 +556,6 @@ class DBUtil:
 
 if __name__ == '__main__':
     dbu = DBUtil()
-    # dbu.reset_results2k()
-    dbu.dbtest()
+    dbu.reset_results2k()
+    # dbu.dbtest()
     # dbu.get_err_ids('results2k')

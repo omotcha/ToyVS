@@ -150,7 +150,8 @@ def inference_and_score_mp(lig_id_list):
 
                     from ecif.util.ECIF import ECIF
                     ecif_helper = ECIF(2016)
-                    ecif = ecif_helper.get_ecif(rec_path, optimized_mol, float(6.0))
+                    ecif_helper.cache_target(rec_path)
+                    ecif = ecif_helper.get_ecif_cached(optimized_mol, float(6.0))
                     ld = ecif_helper.get_ligand_features_by_mol(optimized_mol)
 
                     data = ecif + list(ld)
@@ -345,10 +346,6 @@ def test():
 if __name__ == '__main__':
     start = time.perf_counter()
     test()
-    # eqt, ect = inference_and_score()
     end = time.perf_counter()
     print('\n')
     print('run time: {} seconds'.format(round(end-start)))
-    # print('equibind time: {} seconds'.format(round(eqt)))
-    # print('ecif time: {} seconds'.format(round(ect)))
-

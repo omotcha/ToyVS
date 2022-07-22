@@ -15,6 +15,7 @@ from configs.config_win import ecif_pdb_atom_keys
 
 
 class ECIF:
+    _cached_target = None
     _ds_version = 2016
 
     # ECIF::atom_types
@@ -179,6 +180,36 @@ class ECIF:
             print("WARNING: Protein contains unsupported atom types. Only supported atom-type pairs are counted.")
         return (df)
 
+    def _get_pl_pairs_cached(self, ligand_m, distance_cutoff=6.0):
+        """
+        This function returns the protein-ligand atom-type pairs for a given distance cutoff when cached target exists
+        :param ligand_m:  ligand mol object
+        :param distance_cutoff:
+        :return:
+        """
+
+        Target = self._cached_target
+        Ligand = self._load_ligand(ligand_m)
+
+        for i in ["X", "Y", "Z"]:
+            Target = Target[Target[i] < float(Ligand[i].max()) + distance_cutoff]
+            Target = Target[Target[i] > float(Ligand[i].min()) - distance_cutoff]
+
+        # Get all possible pairs
+        Pairs = list(product(Target["ECIF_ATOM_TYPE"], Ligand["ECIF_ATOM_TYPE"]))
+        Pairs = [x[0] + "-" + x[1] for x in Pairs]
+        Pairs = pd.DataFrame(Pairs, columns=["ECIF_PAIR"])
+        Distances = cdist(Target[["X", "Y", "Z"]], Ligand[["X", "Y", "Z"]], metric="euclidean")
+        Distances = Distances.reshape(Distances.shape[0] * Distances.shape[1], 1)
+        Distances = pd.DataFrame(Distances, columns=["DISTANCE"])
+
+        Pairs = pd.concat([Pairs, Distances], axis=1)
+        Pairs = Pairs[Pairs["DISTANCE"] <= distance_cutoff].reset_index(drop=True)
+        # Pairs from ELEMENTS could be easily obtained froms pairs from ECIF
+        Pairs["ELEMENTS_PAIR"] = [x.split("-")[0].split(";")[0] + "-" + x.split("-")[1].split(";")[0] for x in
+                                  Pairs["ECIF_PAIR"]]
+        return Pairs
+
     def _get_pl_pairs(self, protein_f, ligand_m, distance_cutoff=6.0):
         """
         This function returns the protein-ligand atom-type pairs for a given distance cutoff
@@ -220,6 +251,25 @@ class ECIF:
         ligand_m.UpdatePropertyCache(strict=False)
         Chem.GetSymmSSSR(ligand_m)
         return self._DescCalc.CalcDescriptors(ligand_m)
+
+    def cache_target(self, protein_f):
+        """
+        cache the protein table
+        :param protein_f: input protein file
+        :return:
+        """
+        self._cached_target = self._load_protein(protein_f)
+
+    def get_ecif_cached(self, ligand_m, distance_cutoff=6.0):
+        """
+        get the fingerprint-like array (ECIF) for a protein-ligand pair when cached target exists
+        :param ligand_m:
+        :param distance_cutoff:
+        :return:
+        """
+        Pairs = self._get_pl_pairs_cached(ligand_m, distance_cutoff)
+        ECIF = [list(Pairs["ECIF_PAIR"]).count(x) for x in self._get_possible_ecif()]
+        return ECIF
 
     def get_ecif(self, protein_f, ligand_m, distance_cutoff=6.0):
         """

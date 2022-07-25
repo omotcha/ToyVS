@@ -144,8 +144,8 @@ class ECIF:
 
         df = pd.DataFrame(ECIF_atoms)
         df.columns = ["ATOM_INDEX", "ECIF_ATOM_TYPE", "X", "Y", "Z"]
-        if len(set(df["ECIF_ATOM_TYPE"]) - set(self.__getattribute__('_LigandAtoms_{}'.format(self._ds_version)))) > 0:
-            print("WARNING: Ligand contains unsupported atom types. Only supported atom-type pairs are counted.")
+        # if len(set(df["ECIF_ATOM_TYPE"]) - set(self.__getattribute__('_LigandAtoms_{}'.format(self._ds_version)))) > 0:
+        #     print("WARNING: Ligand contains unsupported atom types. Only supported atom-type pairs are counted.")
         return df
 
     def _load_protein(self, pdb):
@@ -176,8 +176,8 @@ class ECIF:
         df = pd.DataFrame(ECIF_atoms, columns=["ATOM_INDEX", "PDB_ATOM", "X", "Y", "Z"])
         df = df.merge(Atom_Keys, left_on='PDB_ATOM', right_on='PDB_ATOM')[
             ["ATOM_INDEX", "ECIF_ATOM_TYPE", "X", "Y", "Z"]].sort_values(by="ATOM_INDEX").reset_index(drop=True)
-        if list(df["ECIF_ATOM_TYPE"].isna()).count(True) > 0:
-            print("WARNING: Protein contains unsupported atom types. Only supported atom-type pairs are counted.")
+        # if list(df["ECIF_ATOM_TYPE"].isna()).count(True) > 0:
+        #     print("WARNING: Protein contains unsupported atom types. Only supported atom-type pairs are counted.")
         return (df)
 
     def _get_pl_pairs_cached(self, ligand_m, distance_cutoff=6.0):

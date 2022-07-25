@@ -30,7 +30,7 @@ class EquiBindArgs:
         generates the coordinates of the ligand with rdkit instead of using the provided conformer. 
         If you already have a 3D structure that you want to use as initial conformer, then leave this as False
         """
-        self.use_rdkit_coords = True
+        self.use_rdkit_coords = False
         self.save_trajectories = False
         self.num_confs = False
         self.run_dir = os.path.join(project_dir, 'run', 'flexible_self_docking')

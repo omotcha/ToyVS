@@ -48,6 +48,7 @@ pip install psycopg2
 ````angular2html
 initdb -D [database dir]
 pg_ctl -D [database dir] -l logfile start
+createdb [database name]
 ````
 
 - you might want to load data file like smiles.csv to database

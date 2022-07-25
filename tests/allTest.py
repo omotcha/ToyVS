@@ -37,5 +37,20 @@ def canonicalTest():
     print(can_smiles)
 
 
+def msgpackTest():
+    """
+    seems that msgpack cannot pack rdkit MOL obj
+    :return:
+    """
+    import msgpack
+    mol = Chem.MolFromSmiles(r"C\1(=C/2\C(=O)N(C(=S)S2)CCCCCC(=O)Nc2ccc(C(=O)OCC)cc2)/C(=O)N(C(=S)S1)CCCCCC(=O)Nc1ccc(C(=O)OCC)cc1")
+    p = msgpack.packb(mol)
+    print(len(msgpack.unpackb(p).GetAtoms()))
+
+
+def unsupportedECIFElement(smiles):
+    supported_elements = {'Br', 'C', 'Cl', 'F', 'I', 'N', 'S', 'O', 'P'}
+
+
 if __name__ == '__main__':
-    addHTest()
+    msgpackTest()

@@ -765,8 +765,8 @@ def get_lig_graph_multiple_conformer(mol, name, radius=20, max_neighbors=None, u
     for i in range(num_confs):
         R, t = rigid_transform_Kabsch_3D(all_lig_coords[i].T, true_lig_coords.T)
         lig_coords = ((R @ (all_lig_coords[i]).T).T + t.squeeze())
-        log('kabsch RMSD between rdkit ligand and true ligand is ',
-            np.sqrt(np.sum((lig_coords - true_lig_coords) ** 2, axis=1).mean()).item())
+        # log('kabsch RMSD between rdkit ligand and true ligand is ',
+        #     np.sqrt(np.sum((lig_coords - true_lig_coords) ** 2, axis=1).mean()).item())
 
         num_nodes = lig_coords.shape[0]
         assert lig_coords.shape[1] == 3
@@ -783,8 +783,8 @@ def get_lig_graph_multiple_conformer(mol, name, radius=20, max_neighbors=None, u
                 dst = list(np.argsort(distance[i, :]))[1: max_neighbors + 1]  # closest would be self loop
             if len(dst) == 0:
                 dst = list(np.argsort(distance[i, :]))[1:2]  # closest would be the index i itself > self loop
-                log(
-                    f'The lig_radius {radius} was too small for one lig atom such that it had no neighbors. So we connected {i} to the closest other lig atom {dst}')
+                # log(
+                #     f'The lig_radius {radius} was too small for one lig atom such that it had no neighbors. So we connected {i} to the closest other lig atom {dst}')
             assert i not in dst
             src = [i] * len(dst)
             src_list.extend(src)
@@ -823,7 +823,7 @@ def get_lig_graph_revised(mol, name, radius=20, max_neighbors=None, use_rdkit_co
             rdkit_coords = get_rdkit_coords(mol).numpy()
             R, t = rigid_transform_Kabsch_3D(rdkit_coords.T, true_lig_coords.T)
             lig_coords = ((R @ (rdkit_coords).T).T + t.squeeze())
-            log('kabsch RMSD between rdkit ligand and true ligand is ', np.sqrt(np.sum((lig_coords - true_lig_coords) ** 2, axis=1).mean()).item())
+            # log('kabsch RMSD between rdkit ligand and true ligand is ', np.sqrt(np.sum((lig_coords - true_lig_coords) ** 2, axis=1).mean()).item())
         except Exception as e:
             lig_coords = true_lig_coords
             with open('temp_create_dataset_rdkit_timesplit_no_lig_or_rec_overlap_train.log', 'a') as f:
@@ -853,8 +853,8 @@ def get_lig_graph_revised(mol, name, radius=20, max_neighbors=None, use_rdkit_co
             dst = list(np.argsort(distance[i, :]))[1: max_neighbors + 1]  # closest would be self loop
         if len(dst) == 0:
             dst = list(np.argsort(distance[i, :]))[1:2]  # closest would be the index i itself > self loop
-            log(
-                f'The lig_radius {radius} was too small for one lig atom such that it had no neighbors. So we connected {i} to the closest other lig atom {dst}')
+            # log(
+            #     f'The lig_radius {radius} was too small for one lig atom such that it had no neighbors. So we connected {i} to the closest other lig atom {dst}')
         assert i not in dst
         assert dst != []
         src = [i] * len(dst)
@@ -882,6 +882,57 @@ def get_lig_graph_revised(mol, name, radius=20, max_neighbors=None, use_rdkit_co
     graph.ndata['mu_r_norm'] = torch.from_numpy(np.array(mean_norm_list).astype(np.float32))
     if use_rdkit_coords:
         graph.ndata['new_x'] = torch.from_numpy(np.array(lig_coords).astype(np.float32))
+    return graph
+
+
+def get_lig_graph_revised_mini(mol, name, radius=20, max_neighbors=None, use_rdkit_coords=False):
+    conf = mol.GetConformer()
+    true_lig_coords = conf.GetPositions()
+    lig_coords = true_lig_coords
+    num_nodes = lig_coords.shape[0]
+    assert lig_coords.shape[1] == 3
+    distance = spa.distance.cdist(lig_coords, lig_coords)
+
+    src_list = []
+    dst_list = []
+    dist_list = []
+    mean_norm_list = []
+    for i in range(num_nodes):
+        dst = list(np.where(distance[i, :] < radius)[0])
+        dst.remove(i)
+        if max_neighbors != None and len(dst) > max_neighbors:
+            dst = list(np.argsort(distance[i, :]))[1: max_neighbors + 1]  # closest would be self loop
+        if len(dst) == 0:
+            dst = list(np.argsort(distance[i, :]))[1:2]  # closest would be the index i itself > self loop
+            # log(
+            #     f'The lig_radius {radius} was too small for one lig atom such that it had no neighbors. So we connected {i} to the closest other lig atom {dst}')
+        assert i not in dst
+        assert dst != []
+        src = [i] * len(dst)
+        src_list.extend(src)
+        dst_list.extend(dst)
+        valid_dist = list(distance[i, dst])
+        dist_list.extend(valid_dist)
+        valid_dist_np = distance[i, dst]
+        sigma = np.array([1., 2., 5., 10., 30.]).reshape((-1, 1))
+        weights = softmax(- valid_dist_np.reshape((1, -1)) ** 2 / sigma, axis=1)  # (sigma_num, neigh_num)
+        assert weights[0].sum() > 1 - 1e-2 and weights[0].sum() < 1.01
+        diff_vecs = lig_coords[src, :] - lig_coords[dst, :]  # (neigh_num, 3)
+        mean_vec = weights.dot(diff_vecs)  # (sigma_num, 3)
+        denominator = weights.dot(np.linalg.norm(diff_vecs, axis=1))  # (sigma_num,)
+        mean_vec_ratio_norm = np.linalg.norm(mean_vec, axis=1) / denominator  # (sigma_num,)
+
+        mean_norm_list.append(mean_vec_ratio_norm)
+    assert len(src_list) == len(dst_list)
+    assert len(dist_list) == len(dst_list)
+    graph = dgl.graph((torch.tensor(src_list), torch.tensor(dst_list)), num_nodes=num_nodes, idtype=torch.int32)
+
+    graph.ndata['feat'] = lig_atom_featurizer(mol)
+    graph.edata['feat'] = distance_featurizer(dist_list, 0.75)  # avg distance = 1.3 So divisor = (4/7)*1.3 = ~0.75
+    graph.ndata['x'] = torch.from_numpy(np.array(true_lig_coords).astype(np.float32))
+    graph.ndata['mu_r_norm'] = torch.from_numpy(np.array(mean_norm_list).astype(np.float32))
+    # if use_rdkit_coords:
+    #     graph.ndata['new_x'] = torch.from_numpy(np.array(lig_coords).astype(np.float32))
     return graph
 
 

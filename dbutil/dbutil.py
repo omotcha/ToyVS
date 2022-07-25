@@ -250,7 +250,7 @@ class DBUtil:
             count += 1
             id_useless, sm, mw = self._fetch_row_by_index(i, table_name)
             try:
-                cs = Chem.CanonSmiles(sm)
+                cs = Chem.CanonSmiles(raw(sm))
             except:
                 err.append(i)
                 continue

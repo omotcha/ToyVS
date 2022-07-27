@@ -34,6 +34,7 @@ def rangeTest():
 def canonicalTest():
     smiles = r"C\1(=C/2\C(=O)N(C(=S)S2)CCCCCC(=O)Nc2ccc(C(=O)OCC)cc2)/C(=O)N(C(=S)S1)CCCCCC(=O)Nc1ccc(C(=O)OCC)cc1"
     can_smiles = Chem.CanonSmiles(smiles)
+    Chem.MolTo
     print(can_smiles)
 
 

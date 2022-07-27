@@ -468,6 +468,8 @@ def modulator(n_workers=4):
     if not only_process_err:
         modulator_db_helper.create_err_table(modulator_table_name)
         lig_ids = modulator_db_helper.fetch_ids(modulator_table_name)
+        if subtask_start < subtask_end:
+            lig_ids = lig_ids[subtask_start:subtask_end]
         size = math.ceil(len(lig_ids) / n_workers)
         worker_tasks = [lig_ids[i:i + size] for i in range(0, len(lig_ids), size)]
         pool = multiprocessing.Pool(n_workers)

@@ -48,13 +48,23 @@ pip install psycopg2
 ````angular2html
 initdb -D [database dir]
 pg_ctl -D [database dir] -l logfile start
-createdb [database name]
+createdb toydb
+psql toydb
+````
+db create user and grant privileges
+````angular2html
+CREATE USER omotcha WITH PASSWORD '123456'  VALID UNTIL '2024-01-01';
+GRANT CONNECT ON DATABASE toydb TO omotcha;
+GRANT USAGE ON SCHEMA public TO omotcha;
+GRANT SELECT,UPDATE,INSERT,DELETE ON ALL TABLES IN SCHEMA public TO omotcha;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO omotcha;
 ````
 
 - you might want to load data file like smiles.csv to database
-- you can check private member functions implemented in dbutil/dbutil.py
+- you can check private member functions implemented in dbutil/dbutil.py and run them in dbtest
 ````angular2html
 DBUtil._create_table_smiles2k()
-DBUtil._create_table_smiles8m()
-DBUtil._fill_table_with_local_file()
+DBUtil._create_table_results2k()
+DBUtil._fill_table_with_local_file(data2k, 'smiles2k')
+DBUtil._create_distinct_table('smiles2k')
 ````

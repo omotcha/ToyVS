@@ -19,10 +19,11 @@ protein_names = ['7AMA']
 protein_path = os.path.join(data_dir, 'proteins')
 num_process = 4
 ecif_model = os.path.join(project_dir, 'ecif', 'models', 'ecif_gbt_6.0.pkl')
+autogluon_model = os.path.join(project_dir, 'ecif', 'models', 'model.pkl')
 ecif_pdb_atom_keys = os.path.join(project_dir, 'ecif', 'ECIF_PDB_Atom_Keys.csv')
 # for test: subtask
-subtask_start = 0
-subtask_end = 500000
+subtask_start = 500000
+subtask_end = 1000000
 
 
 class EquiBindArgs:

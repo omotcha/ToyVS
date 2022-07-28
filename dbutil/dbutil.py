@@ -556,6 +556,6 @@ class DBUtil:
 
 if __name__ == '__main__':
     dbu = DBUtil()
-    dbu.reset_results8m()
+    dbu.reset_results2k()
     # dbu.dbtest()
     # dbu.get_err_ids('results2k')

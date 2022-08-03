@@ -153,7 +153,7 @@ def inference_and_score_mini(lig_id_list):
             data = ecif + list(ld)
             cols = ecif_helper.get_possible_ecif() + ecif_helper.get_ligand_descriptors()
             data_f = pd.DataFrame([data], columns=cols)
-            pred = m.predict(data_f)[0]
+            pred = float(m.predict(data_f)[0])
             db_helper.insert_prediction(j, optimized_mol, pred, 'results8m')
 
     for err_id in err_ids:
@@ -295,7 +295,7 @@ def inference_and_score_mp(lig_id_list):
                     data = ecif + list(ld)
                     cols = ecif_helper.get_possible_ecif() + ecif_helper.get_ligand_descriptors()
                     data_f = pd.DataFrame([data], columns=cols)
-                    pred = m.predict(data_f)[0]
+                    pred = float(m.predict(data_f)[0])
                     db_helper.insert_prediction(j, optimized_mol, pred, 'results8m')
         for err_id in err_ids:
             db_helper.insert_error(err_id, table_name)
@@ -444,10 +444,13 @@ def inference_and_score(table_name, lig_id_list):
                     data = ecif + list(ld)
                     cols = ecif_helper.get_possible_ecif() + ecif_helper.get_ligand_descriptors()
                     data_f = pd.DataFrame([data], columns=cols)
-                    pred = m.predict(data_f)[0]
+                    pred = float(m.predict(data_f)[0])
                     ecif_end = time.perf_counter()
                     ecif_time = ecif_time + (ecif_end - ecif_start)
-                    db_helper.insert_prediction(j, optimized_mol, pred, 'results8m')
+                    ret = db_helper.insert_prediction(j, optimized_mol, pred, 'results8m')
+                    if not ret:
+                        err_ids.append(i)
+
         print('following ids still cannot be processed:')
         print(err_ids)
     db_helper.__del__()

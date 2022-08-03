@@ -471,7 +471,7 @@ class DBUtil:
         """
         # self.create_err_table("distinct_smiles2k")
         # self.insert_error(89, "distinct_smiles2k")
-        self._drop_table("err_distinct_smiles2k")
+        self._drop_table("err_distinct_smiles8m")
 
     def create_err_table(self, table_name):
         """
@@ -492,11 +492,17 @@ class DBUtil:
         """
         if table_name not in self._tables:
             print('ERROR: table name not found in database')
-            return
+            return False
         sql = "INSERT INTO {}".format(table_name)
         sql = sql + " VALUES(%s, %s, %s)"
-        self._cursor.execute(sql, (i, pickle.dumps(mol), pred))
-        self._connection.commit()
+        try:
+            self._cursor.execute(sql, (i, pickle.dumps(mol), pred))
+            self._connection.commit()
+        except:
+            print("error: duplicate key value, skip for this id: [{}]".format(i))
+            return False
+        return True
+
 
     def insert_error(self, err_id, table_name):
         """
@@ -556,6 +562,7 @@ class DBUtil:
 
 if __name__ == '__main__':
     dbu = DBUtil()
-    dbu.reset_results2k()
+    # dbu.reset_results2k()
     # dbu.dbtest()
+    print(dbu.get_num_rows("results8m"))
     # dbu.get_err_ids('results2k')

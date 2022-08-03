@@ -44,9 +44,10 @@ def inference_and_score_mini(lig_id_list):
     all_recs_keypts = []
     all_names = []
     dp = args['dataset_params']
-    use_rdkit_coords = False
+    use_rdkit_coords = args['use_rdkit_coords'] if args['use_rdkit_coords'] is not None \
+        else args['dataset_params']['use_rdkit_coords']
     db_helper = DBUtil()
-    table_name = "distinct_smiles2k"
+    table_name = "distinct_smiles8m"
     name = "7AMA"
     ######################
     # only for test
@@ -154,7 +155,7 @@ def inference_and_score_mini(lig_id_list):
             cols = ecif_helper.get_possible_ecif() + ecif_helper.get_ligand_descriptors()
             data_f = pd.DataFrame([data], columns=cols)
             pred = float(m.predict(data_f)[0])
-            db_helper.insert_prediction(j, optimized_mol, pred, 'results2k')
+            db_helper.insert_prediction(j, optimized_mol, pred, 'results8m')
 
     for err_id in err_ids:
         db_helper.insert_error(err_id, table_name)
@@ -187,7 +188,7 @@ def inference_and_score_mp(lig_id_list):
     use_rdkit_coords = args['use_rdkit_coords'] if args['use_rdkit_coords'] is not None \
         else args['dataset_params']['use_rdkit_coords']
     db_helper = DBUtil()
-    table_name = "distinct_smiles2k"
+    table_name = "distinct_smiles8m"
     ######################
     # only for test
     # table_name = "smiles2k"
@@ -295,8 +296,8 @@ def inference_and_score_mp(lig_id_list):
                     data = ecif + list(ld)
                     cols = ecif_helper.get_possible_ecif() + ecif_helper.get_ligand_descriptors()
                     data_f = pd.DataFrame([data], columns=cols)
-                    pred = m.predict(data_f)[0]
-                    db_helper.insert_prediction(j, optimized_mol, pred, 'results2k')
+                    pred = float(m.predict(data_f)[0])
+                    db_helper.insert_prediction(j, optimized_mol, pred, 'results8m')
         for err_id in err_ids:
             db_helper.insert_error(err_id, table_name)
     db_helper.__del__()
@@ -444,10 +445,13 @@ def inference_and_score(table_name, lig_id_list):
                     data = ecif + list(ld)
                     cols = ecif_helper.get_possible_ecif() + ecif_helper.get_ligand_descriptors()
                     data_f = pd.DataFrame([data], columns=cols)
-                    pred = m.predict(data_f)[0]
+                    pred = float(m.predict(data_f)[0])
                     ecif_end = time.perf_counter()
                     ecif_time = ecif_time + (ecif_end - ecif_start)
-                    db_helper.insert_prediction(j, optimized_mol, pred, 'results2k')
+                    ret = db_helper.insert_prediction(j, optimized_mol, pred, 'results8m')
+                    if not ret:
+                        err_ids.append(i)
+
         print('following ids still cannot be processed:')
         print(err_ids)
     db_helper.__del__()
@@ -464,12 +468,12 @@ def modulator(n_workers=4):
     only_process_err = False
 
     modulator_db_helper = DBUtil()
-    modulator_table_name = "distinct_smiles2k"
+    modulator_table_name = "distinct_smiles8m"
     if not only_process_err:
         modulator_db_helper.create_err_table(modulator_table_name)
         lig_ids = modulator_db_helper.fetch_ids(modulator_table_name)
-        # if subtask_start < subtask_end:
-        #     lig_ids = lig_ids[subtask_start:subtask_end]
+        if subtask_start < subtask_end:
+            lig_ids = lig_ids[subtask_start:subtask_end]
         size = math.ceil(len(lig_ids) / n_workers)
         worker_tasks = [lig_ids[i:i + size] for i in range(0, len(lig_ids), size)]
         pool = multiprocessing.Pool(n_workers)

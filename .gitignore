@@ -3,3 +3,4 @@
 *.iml
 /run/
 /ecif/models/
+/ecif_plus/models/

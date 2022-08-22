@@ -1,3 +1,9 @@
+"""
+platform: win
+env: toyvs
+name: toy_inference.py
+bundle equibind inference and ecif scoring without using autogluon tabular predictor
+"""
 import multiprocessing
 import os.path
 

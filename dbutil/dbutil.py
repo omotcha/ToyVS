@@ -464,6 +464,122 @@ class DBUtil:
         result.sort(key=None, reverse=False)
         return result
 
+    def count_aff_lesser_than(self, table_name='results8m', affinity_cutoff=7.0):
+        """
+        count the ligands with predicted affinity lesser than cutoff
+        serves as a test of screening
+        :param table_name: the name of table to be queried(results2k or results8m)
+        :param affinity_cutoff: cutoff affinity, as the screening criterion
+        :return: query result
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+
+        query = '''
+        SELECT count(*) FROM {}
+        WHERE prediction < {};
+        '''.format(table_name, affinity_cutoff)
+        self._cursor.execute(query)
+        result = self._cursor.fetchone()
+        return result[0]
+
+    def get_ids_aff_lesser_than(self, table_name='results8m', affinity_cutoff=7.0):
+        """
+        get ids with predicted affinity lesser than cutoff
+        serves as a test of screening
+        :param table_name: the name of table to be queried(results2k or results8m)
+        :param affinity_cutoff: cutoff affinity, as the screening criterion
+        :return: query result
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+
+        query = '''
+        SELECT id FROM {}
+        WHERE prediction < {};
+        '''.format(table_name, affinity_cutoff)
+        self._cursor.execute(query)
+        result = [i[0] for i in self._cursor.fetchall()]
+        result.sort(key=None, reverse=False)
+        return result
+
+    def count_aff_with_bounded_pk(self, table_name='results8m', lower_bound=1.0, upper_bound=11.0):
+        """
+        count the ligands with predicted affinity with two pk boundaries
+        serves as a test of screening
+        :param table_name: the name of table to be queried(results2k or results8m)
+        :param lower_bound: lower pk boundary, as the screening criterion
+        :param upper_bound: upper pk boundary, as the screening criterion
+        :return: query result
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+
+        query = '''
+        SELECT count(*) FROM {}
+        WHERE prediction > {} AND prediction < {};
+        '''.format(table_name, lower_bound, upper_bound)
+        self._cursor.execute(query)
+        result = self._cursor.fetchone()
+        return result[0]
+
+    def get_ids_aff_with_bounded_pk(self, table_name='results8m', lower_bound=1.0, upper_bound=11.0):
+        """
+        get ids with predicted affinity with two pk boundaries
+        serves as a test of screening
+        :param table_name: the name of table to be queried(results2k or results8m)
+        :param lower_bound: lower pk boundary, as the screening criterion
+        :param upper_bound: upper pk boundary, as the screening criterion
+        :return: query result
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+
+        query = '''
+        SELECT id FROM {}
+        WHERE prediction > {} AND prediction < {};
+        '''.format(table_name, lower_bound, upper_bound)
+        self._cursor.execute(query)
+        result = [i[0] for i in self._cursor.fetchall()]
+        result.sort(key=None, reverse=False)
+        return result
+
+    def get_maximum_pk(self, table_name='results8m'):
+        """
+        get the maximum value of pk
+        :param table_name:
+        :return: query result
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+        query = '''
+                SELECT max(prediction) FROM {};
+                '''.format(table_name)
+        self._cursor.execute(query)
+        result = self._cursor.fetchone()[0]
+        return result
+
+    def get_minimum_pk(self, table_name='results8m'):
+        """
+        get the minimum value of pk
+        :param table_name:
+        :return: query result
+        """
+        if table_name not in self._tables:
+            print('ERROR: table name not found in database')
+            return
+        query = '''
+                SELECT min(prediction) FROM {};
+                '''.format(table_name)
+        self._cursor.execute(query)
+        result = self._cursor.fetchone()[0]
+        return result
+
     def fetch_ids(self, table_name):
         """
         fetch id list

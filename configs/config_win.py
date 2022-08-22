@@ -22,8 +22,8 @@ ecif_model = os.path.join(project_dir, 'ecif', 'models', 'ecif_gbt_6.0.pkl')
 autogluon_model = os.path.join(project_dir, 'ecif', 'models', 'model.pkl')
 ecif_pdb_atom_keys = os.path.join(project_dir, 'ecif', 'ECIF_PDB_Atom_Keys.csv')
 # for test: subtask
-subtask_start = 999961
-subtask_end = 1503217
+subtask_start = 3000000
+subtask_end = 4000000
 
 
 class EquiBindArgs:

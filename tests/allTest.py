@@ -1,3 +1,9 @@
+"""
+platform: win
+env: any with psycopg and rdkit
+name: allTest.py
+tests
+"""
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from dbutil.dbutil import *

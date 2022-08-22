@@ -43,6 +43,11 @@ conda install tensorboard -c conda-forge
 conda install rdkit-postgresql -c rdkit
 pip install psycopg2
 ````
+- install jupyter and nglview for visualisation
+````angular2html
+conda install jupyter -c conda-forge
+conda install nglview -c conda-forge
+````
 
 ### Requirements for ToyVS + Autogluon(For Test)
 In my test, Autogluon generates an LightGBXMT model that predicts faster and better than GBT.
